@@ -1,9 +1,10 @@
 import os
+import socket
 import tempfile
 import unittest
 from unittest import mock
 
-from vytron import scanner
+from vytron import ports, scanner
 from vytron.__main__ import main
 from vytron.inventory import Inventory
 
@@ -98,6 +99,53 @@ class CliTests(unittest.TestCase):
                 log = f.read()
             self.assertIn("bb:bb:bb:bb:bb:bb", log)
             self.assertNotIn("aa:aa:aa:aa:aa:aa", log)
+
+
+class PortTests(unittest.TestCase):
+    def test_detects_open_and_closed_ports(self):
+        server = socket.socket()
+        server.bind(("127.0.0.1", 0))
+        server.listen()
+        open_port = server.getsockname()[1]
+        closed = socket.socket()
+        closed.bind(("127.0.0.1", 0))
+        closed_port = closed.getsockname()[1]
+        closed.close()
+        try:
+            result = ports.scan_ports(["127.0.0.1"], [open_port, closed_port])
+        finally:
+            server.close()
+        self.assertEqual(result, {"127.0.0.1": [open_port]})
+
+    def test_sort_by_risk(self):
+        order = [p["port"] for p in ports.sort_by_risk([80, 445, 3389])]
+        self.assertEqual(order, [3389, 445, 80])
+
+    def test_update_ports_reports_only_new(self):
+        with tempfile.TemporaryDirectory() as d:
+            inv = Inventory(os.path.join(d, "devices.json"))
+            inv.update([device("192.168.1.5", "aa:aa:aa:aa:aa:aa")])
+            self.assertEqual(inv.update_ports("aa:aa:aa:aa:aa:aa", [80, 3389]), [80, 3389])
+            self.assertEqual(inv.update_ports("aa:aa:aa:aa:aa:aa", [80, 3389, 23]), [23])
+
+    def test_ports_command_alerts_on_high_risk_only_once(self):
+        with tempfile.TemporaryDirectory() as d, \
+                mock.patch("vytron.__main__.DATA_DIR", d), \
+                mock.patch("vytron.alerts.email_settings", return_value=None), \
+                mock.patch("vytron.scanner.scan",
+                           return_value=[device("192.168.1.5", "aa:aa:aa:aa:aa:aa")]), \
+                mock.patch("vytron.ports.scan_ports",
+                           return_value={"192.168.1.5": [80, 3389]}):
+            log_path = os.path.join(d, "alerts.log")
+            main(["ports", "--network", "192.168.1.0/24"])
+            with open(log_path) as f:
+                log = f.read()
+            self.assertIn("3389", log)
+            self.assertNotIn("port 80", log)
+
+            main(["ports", "--network", "192.168.1.0/24"])
+            with open(log_path) as f:
+                self.assertEqual(f.read(), log)
 
 
 if __name__ == "__main__":

@@ -57,6 +57,14 @@ class Inventory:
                 known["last_seen"] = timestamp
         return new_devices, ip_changes
 
+    def update_ports(self, mac, open_ports):
+        """Save a device's open ports. Returns ports not open last time."""
+        dev = self.devices[mac]
+        previous = set(dev.get("open_ports", []))
+        dev["open_ports"] = sorted(open_ports)
+        dev["ports_checked"] = now()
+        return sorted(set(open_ports) - previous)
+
     def unapproved(self):
         return [d for d in self.devices.values() if not d["approved"]]
 

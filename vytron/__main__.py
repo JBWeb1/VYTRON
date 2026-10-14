@@ -5,7 +5,7 @@ import os
 import sys
 import time
 
-from . import alerts, scanner
+from . import alerts, ports, scanner
 from .inventory import Inventory
 
 DATA_DIR = os.environ.get("VYTRON_DATA_DIR", os.path.join(os.path.expanduser("~"), ".vytron"))
@@ -37,6 +37,39 @@ def report(new_devices, ip_changes, baseline):
                      f"{alerts.describe(dev)} (was {old_ip})", log)
 
 
+def check_ports(inv, found, verbose):
+    """Check online devices for risky open ports and alert on new HIGH-risk ones."""
+    print(f"Checking {len(found)} device(s) for risky open ports ...")
+    results = ports.scan_ports([d["ip"] for d in found])
+    warnings = []
+    for dev in found:
+        record = inv.devices[dev["mac"]]
+        open_ports = results[dev["ip"]]
+        newly_open = inv.update_ports(dev["mac"], open_ports)
+        if verbose and open_ports:
+            print(f"\n  {alerts.describe(record)}")
+            for p in ports.sort_by_risk(open_ports):
+                print(f"    [{p['risk']:<6}] port {p['port']:<5} {p['service']}: {p['advice']}")
+        for p in ports.sort_by_risk(newly_open):
+            if p["risk"] == ports.HIGH:
+                warnings.append(f"{alerts.describe(record)}\n"
+                                f"    port {p['port']} {p['service']}: {p['advice']}")
+    inv.save()
+    if verbose and not any(results.values()):
+        print("  No risky open ports found.")
+    if warnings:
+        alerts.alert("High-risk port open",
+                     "These devices have high-risk services switched on:\n\n" + "\n\n".join(warnings),
+                     data_path("alerts.log"))
+
+
+def cmd_ports(args, inv):
+    baseline = not inv.devices
+    found, new_devices, ip_changes = run_scan(inv, args.network)
+    report(new_devices, ip_changes, baseline)
+    check_ports(inv, found, verbose=True)
+
+
 def cmd_scan(args, inv):
     baseline = not inv.devices
     found, new_devices, ip_changes = run_scan(inv, args.network)
@@ -55,8 +88,10 @@ def cmd_watch(args, inv):
     try:
         while True:
             baseline = not inv.devices
-            _, new_devices, ip_changes = run_scan(inv, args.network)
+            found, new_devices, ip_changes = run_scan(inv, args.network)
             report(new_devices, ip_changes, baseline)
+            if args.ports:
+                check_ports(inv, found, verbose=False)
             time.sleep(args.interval)
     except KeyboardInterrupt:
         print("\nStopped.")
@@ -105,7 +140,12 @@ def main(argv=None):
     p = sub.add_parser("watch", help="Keep scanning and alert on new devices")
     p.add_argument("--network", help="Network to scan, e.g. 192.168.1.0/24")
     p.add_argument("--interval", type=int, default=300, help="Seconds between scans (default 300)")
+    p.add_argument("--ports", action="store_true", help="Also check for newly opened high-risk ports")
     p.set_defaults(func=cmd_watch)
+
+    p = sub.add_parser("ports", help="Check every device for risky open ports")
+    p.add_argument("--network", help="Network to scan, e.g. 192.168.1.0/24")
+    p.set_defaults(func=cmd_ports)
 
     p = sub.add_parser("list", help="Show all saved devices")
     p.set_defaults(func=cmd_list)

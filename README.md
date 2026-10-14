@@ -11,6 +11,7 @@ VYTRON scans your office network, keeps a list of every device it finds, and ale
 - **Device inventory**: lists every device on the network with its IP address, MAC address and hostname
 - **New device alerts**: warns you when a device you haven't approved appears
 - **IP change alerts**: flags unapproved devices that move to a different IP address
+- **Open port checker**: finds devices with risky services switched on (Remote Desktop, Telnet, open databases and more) and explains how to fix each one
 - **Email alerts** (optional) and an alert log file
 
 ### Requirements
@@ -31,8 +32,11 @@ python -m vytron approve a4:2b:b0:11:22:33 --name "Office router"
 #    ...or, if you trust everything found on the first scan:
 python -m vytron approve --all
 
-# 3. Keep watching (scans every 5 minutes; press Ctrl+C to stop)
-python -m vytron watch
+# 3. Check every device for risky open ports
+python -m vytron ports
+
+# 4. Keep watching (scans every 5 minutes; press Ctrl+C to stop)
+python -m vytron watch --ports
 ```
 
 The network is detected automatically. To choose it yourself, add `--network 192.168.1.0/24`.
@@ -42,11 +46,24 @@ The network is detected automatically. To choose it yourself, add `--network 192
 | Command | What it does |
 |---|---|
 | `scan` | Scan once and report new devices |
-| `watch [--interval 300]` | Scan repeatedly and alert on new devices |
+| `watch [--interval 300] [--ports]` | Scan repeatedly and alert on new devices (and newly opened high-risk ports with `--ports`) |
+| `ports` | Check every device for risky open ports, with advice for each |
 | `list` | Show all saved devices and whether they're approved |
 | `approve <MAC> [--name "..."]` | Mark a device as trusted |
 | `approve --all` | Trust every saved device |
 | `remove <MAC>` | Forget a device |
+
+### Open port checker
+
+`ports` checks each device for about 20 services that attackers commonly abuse, and rates each one:
+
+| Risk | Examples | What to do |
+|---|---|---|
+| **HIGH** | Remote Desktop (3389), Telnet (23), VNC (5900), FTP (21), open databases | Turn it off, or only allow it through a VPN. These trigger alerts. |
+| **MEDIUM** | Windows file sharing (445), SSH (22), camera video (554) | Fine on the right device (e.g. file sharing on a file server), suspicious elsewhere |
+| **LOW** | Web admin pages (80, 8080), printing (9100) | Make sure default passwords are changed |
+
+Alerts are only sent the first time a high-risk port is seen open on a device, so `watch --ports` won't repeat the same warning every few minutes.
 
 ### Email alerts (optional)
 
@@ -80,7 +97,7 @@ python -m unittest discover -s tests
 
 - [x] Device inventory
 - [x] New device alerts
-- [ ] Open port checker
+- [x] Open port checker
 - [ ] Large upload (data theft) alerts
 - [ ] Known malicious site detection
 - [ ] Failed login monitor
