@@ -76,6 +76,56 @@ Guards against phishing and protects data from loss or ransomware.
 - **Acronis Cyber Protect**: backup with integrated anti-malware
 - **Backblaze**: cloud backup
 
+## Wired (LAN) Network Monitoring for Businesses
+
+Watches traffic across the wired business network to detect hacking attempts and data theft.
+
+### How it connects
+
+```
+Internet ── Router/Firewall ── Network Switch ── Office PCs, servers, printers
+                                    │
+                          (mirror port or TAP)
+                                    │
+                          Monitoring computer
+                          (IDS / NDR software)
+```
+
+- **Mirror port (SPAN)**: a managed switch copies all traffic to one port, where the monitoring computer is plugged in
+- **Network TAP**: a small hardware device placed inline on a cable that copies traffic without slowing the network
+
+### Free / open-source tools
+
+| Tool | What it does |
+|---|---|
+| **Security Onion** | All-in-one platform (Suricata, Zeek and a dashboard), the best place to start |
+| **Suricata** | Detects and can block known attacks and malware traffic |
+| **Zeek** | Logs every connection for investigating who talked to what |
+| **Snort** | Classic intrusion detection system (IDS) |
+| **Wazuh** | Monitors the computers themselves and combines their logs with network alerts |
+| **ntopng** | Shows how much data each device sends and where, which helps spot data theft |
+
+### Commercial tools
+
+- **Darktrace**: uses AI to learn normal activity and flag unusual behavior
+- **Vectra AI / ExtraHop Reveal(x) / Cisco Secure Network Analytics**: network detection and response (NDR)
+- **Firewalls with IPS** (Fortinet, Palo Alto, Sophos): block attacks at the internet connection
+
+### Stopping data theft
+
+- **Data Loss Prevention (DLP)** tools (Microsoft Purview, Forcepoint, Endpoint Protector) block confidential files from leaving by email, USB or uploads
+- Set up alerts for large uploads to unknown sites (ntopng, Zeek)
+- Separate the network into zones (VLANs) so guest Wi-Fi and cameras can't reach business servers
+
+### Simple starting plan
+
+1. Get a managed switch or a network TAP
+2. Install Security Onion on a spare PC with two network ports
+3. Plug one port into the mirror port or TAP, and use the other for management
+4. Review alerts weekly, or forward them to email
+
+> Only monitor networks your business owns, and tell employees about the monitoring in your IT policy. Many places legally require this notice.
+
 ## Basic Security Checklist
 
 1. Keep the OS and software updated
