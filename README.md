@@ -1,5 +1,96 @@
 # VYTRON
 
+A small business LAN monitor, plus a reference guide to common types of cybersecurity software.
+
+## The VYTRON Tool
+
+VYTRON scans your office network, keeps a list of every device it finds, and alerts you when an unknown device connects.
+
+### Features
+
+- **Device inventory**: lists every device on the network with its IP address, MAC address and hostname
+- **New device alerts**: warns you when a device you haven't approved appears
+- **IP change alerts**: flags unapproved devices that move to a different IP address
+- **Email alerts** (optional) and an alert log file
+
+### Requirements
+
+- Python 3.9 or newer ([python.org](https://www.python.org/downloads/)). No extra packages are needed.
+- A computer connected to the business network by LAN cable
+- Windows, macOS or Linux
+
+### Getting started
+
+```bash
+# 1. First scan: saves every device currently on the network as your starting list
+python -m vytron scan
+
+# 2. Review the list and approve the devices you recognize
+python -m vytron list
+python -m vytron approve a4:2b:b0:11:22:33 --name "Office router"
+#    ...or, if you trust everything found on the first scan:
+python -m vytron approve --all
+
+# 3. Keep watching (scans every 5 minutes; press Ctrl+C to stop)
+python -m vytron watch
+```
+
+The network is detected automatically. To choose it yourself, add `--network 192.168.1.0/24`.
+
+### Commands
+
+| Command | What it does |
+|---|---|
+| `scan` | Scan once and report new devices |
+| `watch [--interval 300]` | Scan repeatedly and alert on new devices |
+| `list` | Show all saved devices and whether they're approved |
+| `approve <MAC> [--name "..."]` | Mark a device as trusted |
+| `approve --all` | Trust every saved device |
+| `remove <MAC>` | Forget a device |
+
+### Email alerts (optional)
+
+Set these environment variables before running `watch`:
+
+| Variable | Example |
+|---|---|
+| `VYTRON_SMTP_HOST` | `smtp.gmail.com` |
+| `VYTRON_SMTP_PORT` | `587` (the default) |
+| `VYTRON_SMTP_USER` | `you@example.com` |
+| `VYTRON_SMTP_PASSWORD` | An app password (for Gmail, create one under Google Account → Security → App passwords) |
+| `VYTRON_ALERT_TO` | `owner@example.com` |
+
+### Where data is saved
+
+The device list (`devices.json`) and alert log (`alerts.log`) are stored in a `.vytron` folder in your user folder. To use a different folder, set `VYTRON_DATA_DIR`.
+
+### Notes
+
+- The computer running VYTRON doesn't list itself.
+- Devices that block ping, or that are on a different network segment (VLAN), may not show up.
+- Only scan networks you own or have permission to monitor.
+
+### Running the tests
+
+```bash
+python -m unittest discover -s tests
+```
+
+### Roadmap
+
+- [x] Device inventory
+- [x] New device alerts
+- [ ] Open port checker
+- [ ] Large upload (data theft) alerts
+- [ ] Known malicious site detection
+- [ ] Failed login monitor
+- [ ] Web dashboard
+- [ ] Weekly report
+
+---
+
+# Cybersecurity Software Guide
+
 A reference guide to common types of cybersecurity software and well-known tools in each category.
 
 ## Endpoint Protection (Antivirus / EDR)
